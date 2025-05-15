@@ -1,25 +1,17 @@
-@startuml
-actor User
-participant "Microsoft Exchange\nServer (On-Premise)" as Exchange
-participant "Mulesoft\n(On-Premise AWS)" as Mulesoft
-participant "Amazon\nSecret Service" as SecretsManager
-participant "GraphQL\nService" as GraphQL
-participant Salesforce
-
-User -> Exchange: Sends Email
-Exchange -> Mulesoft: Retrieves Email (IMAPS/POP3S)
-activate Mulesoft
-Mulesoft -> SecretsManager: Requests Exchange Credentials
-activate SecretsManager
-SecretsManager --> Mulesoft: Returns Exchange Credentials (Securely)
-deactivate SecretsManager
-Mulesoft -> Mulesoft: Processes Email & Attachments\n(Malware Scan, DLP, Transformation)
-Mulesoft -> GraphQL: Sends Processed Data (HTTPS/TLS)
-activate GraphQL
-GraphQL -> Salesforce: Creates Case (HTTPS/TLS + OAuth 2.0)
-activate Salesforce
-Salesforce --> GraphQL: Acknowledges Case Creation
-deactivate Salesforce
-GraphQL --> Mulesoft: Acknowledges Data Received
-deactivate GraphQL
-@enduml
+  1. User -> Microsoft Exchange Server (On-Premise): Sends Email
+  2. Microsoft Exchange Server (On-Premise) -> Mulesoft (On-Premise AWS): Retrieves Email (IMAPS/POP3S)
+     - Activation of Mulesoft
+  3. Mulesoft (On-Premise AWS) -> Amazon Secret Service: Requests Exchange Credentials
+     - Activation of Amazon Secret Service
+  4. Amazon Secret Service --> Mulesoft (On-Premise AWS): Returns Exchange Credentials (Securely)
+     - Deactivation of Amazon Secret Service
+  5. Mulesoft (On-Premise AWS) -> Mulesoft (On-Premise AWS): Processes Email & Attachments (Malware Scan, DLP, Transformation)
+  6. Mulesoft (On-Premise AWS) -> GraphQL Service: Sends Processed Data (HTTPS/TLS)
+     - Activation of GraphQL Service
+  7. GraphQL Service -> Salesforce: Creates Case (HTTPS/TLS + OAuth 2.0)
+     - Activation of Salesforce
+  8. Salesforce --> GraphQL Service: Acknowledges Case Creation
+     - Deactivation of Salesforce
+  9. GraphQL Service --> Mulesoft (On-Premise AWS): Acknowledges Data Received
+     - Deactivation of GraphQL Service
+     - Deactivation of Mulesoft
