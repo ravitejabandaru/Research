@@ -1,24 +1,25 @@
-Description: This document details a secure and compliant architecture for establishing a custom email-to-case functionality within our Salesforce instance. Recognizing the sensitive nature of banking data and adhering to stringent internal security policies, this design leverages our on-premise Microsoft Exchange server and internal Mulesoft infrastructure hosted on our company's AWS environment, ensuring all critical processing remains within our corporate network.
+@startuml
+actor User
+participant "Microsoft Exchange\nServer (On-Premise)" as Exchange
+participant "Mulesoft\n(On-Premise AWS)" as Mulesoft
+participant "Amazon\nSecret Service" as SecretsManager
+participant "GraphQL\nService" as GraphQL
+participant Salesforce
 
-Scope: This design encompasses the secure retrieval of emails and attachments from our on-premise Microsoft Exchange server by Mulesoft, the application of necessary processing including potential malware scanning and data loss prevention, the transformation of this data into a format suitable for our existing GraphQL service, and the secure transmission of this transformed data to the GraphQL service for case creation in Salesforce. It explicitly addresses the network communication within our internal network and the security protocols employed at each stage.
-
-Context: Our organization requires a custom email-to-case solution due to the need for on-premise processing of email content before it reaches Salesforce, a capability not fully met by standard cloud-based solutions. We have an existing GraphQL service that currently integrates with Salesforce, and this project aims to leverage that existing infrastructure to minimize new external integrations. The use of our on-premise Microsoft Exchange server necessitates secure internal communication and processing within our corporate firewall.
-
-Proposed Architecture: The proposed architecture involves the following key components operating within our corporate network:
-
-On-Premise Microsoft Exchange Server: Our internal email server hosting incoming customer support emails.
-Mulesoft on On-Premise AWS: An integration platform deployed within our internal AWS environment responsible for securely connecting to the Exchange server (using TLS/SSL), retrieving emails and attachments, performing necessary processing (e.g., malware scanning, DLP), and transforming the data.
-GraphQL Service: Our existing internal service that will receive the processed email data from Mulesoft via secure HTTPS/TLS.
-Salesforce: Our CRM platform, which will receive the case data from the GraphQL service via an existing secure HTTPS/TLS connection (likely utilizing OAuth 2.0).
-API Specs: The primary API interaction detailed in this design involves:
-
-Mulesoft to Microsoft Exchange Server: Utilizing standard email retrieval protocols (e.g., IMAPS, POP3S) over TLS/SSL. Specific API commands will be those defined by the chosen protocol.
-Mulesoft to GraphQL Service: A custom API endpoint on the GraphQL service will be invoked by Mulesoft, likely using RESTful principles over HTTPS/TLS, with a defined JSON payload structure for the email body and attachments. The specific schema for this payload will need to be documented.
-GraphQL Service to Salesforce: This leverages an existing API connection. The specifics of this API (e.g., Salesforce SOAP or REST APIs, GraphQL mutations) are assumed to be already defined and will be utilized by the GraphQL service to create cases based on the data received from Mulesoft.
-Security: Security is paramount in this design and is addressed at multiple layers:
-
-Network Security: All communication between the on-premise Exchange server, Mulesoft, and the GraphQL service will occur within our secure corporate network, protected by our existing firewall infrastructure. Specific firewall rules will be implemented to restrict communication to only necessary ports and protocols.
-Data in Transit: Secure protocols such as TLS/SSL will be enforced for communication between Mulesoft and the Exchange server, and HTTPS/TLS for communication between Mulesoft and the GraphQL service, ensuring encryption of data during transmission. The existing connection between the GraphQL service and Salesforce is also secured with HTTPS/TLS.
-Data at Rest: Sensitive configuration data within Mulesoft (e.g., Exchange credentials) will be securely managed and encrypted at rest. Consideration will be given to encryption of any temporary data stored within the Mulesoft processing environment on AWS.
-Authentication and Authorization: Mulesoft will authenticate to the Exchange server using secure credentials. Mulesoft will be authorized to access the GraphQL API endpoint through appropriate mechanisms (e.g., API keys, tokens). The existing OAuth 2.0 mechanism between the GraphQL service and Salesforce will ensure secure authorization for case creation.
-Attachment Security: Mulesoft will implement measures for handling email attachments, including potential malware scanning and data loss prevention (DLP) checks, before passing them to the GraphQL service.
+User -> Exchange: Sends Email
+Exchange -> Mulesoft: Retrieves Email (IMAPS/POP3S)
+activate Mulesoft
+Mulesoft -> SecretsManager: Requests Exchange Credentials
+activate SecretsManager
+SecretsManager --> Mulesoft: Returns Exchange Credentials (Securely)
+deactivate SecretsManager
+Mulesoft -> Mulesoft: Processes Email & Attachments\n(Malware Scan, DLP, Transformation)
+Mulesoft -> GraphQL: Sends Processed Data (HTTPS/TLS)
+activate GraphQL
+GraphQL -> Salesforce: Creates Case (HTTPS/TLS + OAuth 2.0)
+activate Salesforce
+Salesforce --> GraphQL: Acknowledges Case Creation
+deactivate Salesforce
+GraphQL --> Mulesoft: Acknowledges Data Received
+deactivate GraphQL
+@enduml
