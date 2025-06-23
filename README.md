@@ -72,3 +72,49 @@ MuleSoft Runtime -> Florence Egress Gateway: Route extracted email data
 Florence Egress Gateway --> Case & Document Manager: Forward processed data
 
 
+participant MuleSoft as MS
+participant AWS_IAM_Role as IAM
+participant AWS_STS as STS
+participant JPMC_C2C_Service as C2C
+participant Azure_Entra_ID as AzureAD
+participant Microsoft_Graph_API as GraphAPI
+participant Florence_Egress_Gateway as FlorenceGW
+participant Case_and_Document_Manager as CaseDocMgr
+
+MS -> IAM: Assume IAM Role
+activate IAM
+
+IAM -> STS: Request Temporary Token
+activate STS
+STS --> IAM: Return STS Token
+deactivate STS
+
+IAM --> MS: Provide STS Token
+deactivate IAM
+
+MS -> C2C: Request JWT Token (STS Token)
+activate C2C
+C2C --> MS: Provide JWT Token
+deactivate C2C
+
+MS -> AzureAD: Request OAuth Token (JWT)
+activate AzureAD
+AzureAD --> MS: Return OAuth Token
+deactivate AzureAD
+
+MS -> GraphAPI: Fetch Emails & Attachments
+activate GraphAPI
+GraphAPI --> MS: Return Emails & Attachments
+deactivate GraphAPI
+
+MS -> FlorenceGW: Send Processed Data
+activate FlorenceGW
+
+FlorenceGW -> CaseDocMgr: Forward Data
+activate CaseDocMgr
+CaseDocMgr --> FlorenceGW: Acknowledge Receipt
+deactivate CaseDocMgr
+
+FlorenceGW --> MS: Confirm Forwarding
+deactivate FlorenceGW
+
