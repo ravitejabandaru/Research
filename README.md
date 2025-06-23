@@ -1,5 +1,7 @@
 
 
+=
+
 ⸻
 
 Description:
@@ -118,3 +120,23 @@ deactivate CaseDocMgr
 FlorenceGW --> MS: Confirm Forwarding
 deactivate FlorenceGW
 
+============================
+
+The solution leverages Microsoft Entra ID and the JPMC Credential-to-Credential (C2C) identity federation model to securely connect the MuleSoft Runtime (hosted in AWS xCore EKS) to Microsoft Graph API for accessing shared mailboxes in Exchange Online.
+
+The authentication and authorization flow is handled entirely through short-lived, non-human-accessible credentials with automatic key rotation, ensuring high compliance with enterprise and regulatory standards.
+
+Credential-to-Credential (C2C) Flow:
+	1.	An application running on AWS (MuleSoft Runtime) calls the C2C Service to exchange its workload’s IAM role identity token for a security token trusted by Entra ID.
+	2.	The C2C service authenticates the AWS IAM role using AWS Security Token Service (STS).
+	3.	MuleSoft passes the C2C token to Microsoft Entra ID STS to receive an access token used for calling the protected Microsoft Graph API.
+	4.	Entra ID validates the C2C token using cryptographic signing keys that are rotated automatically and never exposed to humans, then issues a short-lived access token.
+	5.	MuleSoft uses this Entra access token to authenticate to the Microsoft Graph API.
+	6.	Microsoft Graph API (an Entra-protected application) validates the access token using Entra’s signing keys, granting access securely.
+
+All credentials are handled securely using:
+	•	AWS Secrets Manager (to store the C2C client ID and secret).
+	•	xCore EKS AuthorizationPolicy to control outbound traffic and integrate with Istio gateways.
+	•	ExpressRoute and Network Edge Proxy to route traffic securely to Azure, bypassing public internet exposure.
+
+This approach ensures that no long-lived secrets are used, credentials are rotated automatically, and access tokens are strictly scoped and short-lived.
