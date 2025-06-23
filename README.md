@@ -48,3 +48,27 @@ Sequence Diagram:
 Decision Required:
 
 ARGW approval of the proposed integration architecture for MuleSoft Runtime to securely integrate with Microsoft 365 via Graph API and Azure Entra ID C2C authentication, adhering fully to JPMC security and compliance guidelines.
+
+participant MuleSoft Runtime
+participant AWS IAM Role
+participant AWS STS
+participant JPMC C2C Service
+participant Azure Entra ID
+participant Microsoft Graph API
+participant Florence Egress Gateway
+participant Case & Document Manager
+
+MuleSoft Runtime -> AWS IAM Role: Assume IAM Role
+AWS IAM Role -> AWS STS: Request temporary token
+AWS STS --> AWS IAM Role: Return STS Token
+AWS IAM Role --> MuleSoft Runtime: Provide STS Token
+MuleSoft Runtime -> JPMC C2C Service: Request JWT Token using STS Token
+JPMC C2C Service --> MuleSoft Runtime: Provide JWT Token
+MuleSoft Runtime -> Azure Entra ID: Request OAuth Token using JWT Token
+Azure Entra ID --> MuleSoft Runtime: Provide OAuth Token
+MuleSoft Runtime -> Microsoft Graph API: Call Graph API (Fetch Emails)
+Microsoft Graph API --> MuleSoft Runtime: Return Emails & Attachments
+MuleSoft Runtime -> Florence Egress Gateway: Route extracted email data
+Florence Egress Gateway --> Case & Document Manager: Forward processed data
+
+
