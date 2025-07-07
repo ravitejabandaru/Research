@@ -1,3 +1,129 @@
+We are considering the following resilience strategies for the Email-to-Case integration using Microsoft Graph API and MuleSoft Runtime on AWS EKS. Based on POC results and compliance decisions (e.g., whether we can move emails), we will finalize the best-fit option.
+
+⸻
+
+Option 1: Message-ID Tracking via Redis
+	•	What it is: Store processed InternetMessageId in Redis with TTL to prevent duplicate processing.
+	•	Steps:
+	1.	After successful processing, store the Message-ID as a key in Redis (processed:<messageId>).
+	2.	Set TTL (e.g., 7 days) for automatic cleanup.
+	3.	Before processing each email, check Redis to skip duplicates.
+	•	Resilient Against: Pod restarts, retries, and out-of-order delivery.
+	•	Infra Required: Redis (managed like ElastiCache or containerized).
+
+⸻
+
+Option 2: Log Processed Emails to S3
+	•	What it is: Append processed email metadata (ID + timestamp) to S3 (as JSON log).
+	•	Steps:
+	1.	After processing, write the Message-ID + timestamp to a log file or object in S3.
+	2.	Optionally, check this log before processing (or use Athena/Glue for queries).
+	3.	S3 acts as a long-term audit trail.
+	•	Resilient Against: Data loss, long-term duplication, audit requirements.
+	•	Infra Required: S3 bucket with lifecycle policies.
+
+⸻
+
+Option 3: Use Salesforce External ID
+	•	What it is: Store InternetMessageId in a custom External ID field on the Case object.
+	•	Steps:
+	1.	Set the External ID on Case insert.
+	2.	If the same message is received again, insertion fails or is skipped.
+	•	Resilient Against: Inserting duplicates into Salesforce.
+	•	Limitation: Does not prevent duplicate processing in MuleSoft — only blocks insert into Salesforce.
+
+⸻
+
+Option 4: Database (RDS or DocumentDB)
+	•	What it is: Track email processing status in a relational or NoSQL DB.
+	•	Steps:
+	1.	Insert record per email with ID, timestamp, status.
+	2.	Check this DB before processing.
+	3.	Can extend schema to store retry status, errors, etc.
+	•	Resilient Against: Complex processing logic, retry flows, partial failures.
+	•	Infra Required: RDS or DocumentDB, schema management.
+
+⸻
+
+Option 5: Local MuleSoft Object Store (for POC only)
+	•	What it is: Use built-in MuleSoft object store to store processed Message-IDs temporarily.
+	•	Steps:
+	1.	Write processed IDs with TTL in MuleSoft’s object store.
+	2.	Lookup before processing.
+	•	Note: Not shared across pods; not recommended for production. Just for basic testing.
+
+⸻
+
+Option 6: Move Email to ‘Processed’ Folder (Preferred if Allowed)
+	•	What it is: After successful processing, move email to another folder using Microsoft Graph.
+	•	Steps:
+	1.	Poll only the Inbox folder.
+	2.	On success, move the email to /Processed folder via Graph API.
+	3.	Next cycle only fetches unprocessed emails still in Inbox.
+	•	Resilient Against: All failure modes; no need for Redis/S3/DB.
+
+
+Option 7: Delta Query Support (If Mailbox Supports It)
+	•	What it is: Use Graph API Delta Queries to get only changed messages.
+	•	Steps:
+	1.	Use /delta endpoint on first call to get state token.
+	2.	On next poll, pass that token to receive only new/delta messages.
+	•	Resilient Against: Over-fetching, reduces data volume.
+	•	Note: Only supported for some mailbox types (needs confirmation).
+
+⸻
+
+Option 8: In-Memory LRU Cache (within MuleSoft Pods)
+	•	What it is: Store last N processed IDs in memory inside each pod.
+	•	Steps:
+	1.	Keep a small (~1,000 items) LRU map per pod.
+	2.	Skip emails already seen in that cache.
+	•	Resilient Against: Short-term duplicates, retries.
+	•	Limitation: Not resilient to pod crashes; use only with another durable option.
+
+⸻
+
+Option 9: Dead Letter Queue (DLQ) or Retry Store
+	•	What it is: Store failed email message IDs for later triage.
+	•	Steps:
+	1.	On permanent failure, log message ID and reason to S3 or DLQ.
+	2.	Provide a reprocessing mechanism for DLQ entries.
+	•	Resilient Against: Message loss during unexpected failures.
+	•	Infra Required: S3 or database-based DLQ storage.
+
+⸻
+
+Option 10: No State Tracking (POC-Only Quick Test)
+	•	What it is: Just poll based on timestamp and process all matching emails.
+	•	Steps:
+	1.	Use Graph $filter=receivedDateTime queries.
+	2.	Process all returned emails.
+	•	Limitation: High chance of duplicates unless mailbox is small and testing is isolated.
+
+⸻
+
+✅ Next Steps
+
+During the POC, we will implement and evaluate:
+	•	Option 1 (Redis) for fast duplicate detection
+	•	Option 2 (S3) for audit durability
+	•	Option 6 (Email Move) if allowed by InfoSec
+	•	Others depending on mailbox type and performance
+
+Final selection will be made based on:
+	•	Message volume
+	•	Graph API limits
+	•	Compliance rules (e.g., move/delete email restrictions)
+	•	Recovery needs
+
+=================
+
+
+
+
+
+
+
 
 
 =
